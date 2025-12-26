@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estúdio de Vídeo Pro - Texto Livre</title>
+    <script src="https://cdn.jsdelivr.net/npm/fireworks-js@2.x/dist/index.umd.js"></script>
+    <style>
+        body { margin: 0; font-family: 'Segoe UI', sans-serif; background: #000; color: white; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        
+        #setup { 
+            background: rgba(15, 15, 15, 0.98); padding: 25px; border-radius: 20px; 
+            text-align: center; z-index: 100; width: 340px; border: 1px solid #333;
+        }
+        h2 { margin-top: 0; color: #ffcc00; font-size: 1.5rem; }
+        label { display: block; text-align: left; font-size: 0.8rem; margin-bottom: 5px; color: #888; }
+        input, select, button { width: 100%; padding: 12px; margin-bottom: 12px; border-radius: 10px; border: 1px solid #333; font-size: 0.9rem; box-sizing: border-box; }
+        input, select { background: #000; color: white; }
+        
+        .btn-main { background: #ffcc00; color: black; font-weight: bold; cursor: pointer; border: none; margin-top: 10px; }
+
+        #display-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: none; background: #000; }
+        #mainCanvas { width: 100%; height: 100%; }
+
+        #status-msg { 
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            background: #ff4757; padding: 8px 20px; border-radius: 30px;
+            font-weight: bold; display: none; z-index: 1000;
+        }
+
+        .controls { position: fixed; bottom: 30px; z-index: 1000; display: flex; gap: 10px; }
+        .btn-action { padding: 12px 20px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div id="setup">
+        <h2>🎇 Criador de Vídeos</h2>
+        
+        <label>Frase de Saudação (Sem limite):</label>
+        <input type="text" id="user-msg" placeholder="Escreve o que quiseres aqui..." maxlength="200">
+        
+        <label>Estilo da Letra:</label>
+        <select id="font-style">
+            <option value="sans-serif">Moderno</option>
+            <option value="serif">Clássico</option>
+            <option value="system-ui">Impacto</option>
+        </select>
+
+        <label>Efeito de Fogos:</label>
+        <select id="firework-type">
+            <option value="colorful">Colorido Mix</option>
+            <option value="gold">Dourado Nobre</option>
+            <option value="light">Suave (Mais Leve)</option>
+        </select>
+
+        <label>Sua Foto:</label>
+        <input type="file" id="user-photo" accept="image/*">
+        
+        <button class="btn-main" onclick="gerarShow()">VISUALIZAR E GRAVAR</button>
+    </div>
+
+    <div id="status-msg">🔴 GRAVANDO... (7s)</div>
+    
+    <div id="display-container">
+        <canvas id="mainCanvas"></canvas>
+        <div class="controls">
+            <button class="btn-action" style="background: #ff4757; color: white;" onclick="iniciarGravacao()">🎬 GRAVAR VÍDEO</button>
+            <button class="btn-action" style="background: #333; color: white;" onclick="location.reload()">VOLTAR</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d', { alpha: false });
+        let fw;
+        let bgImg = new Image();
+        let hasBg = false;
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        function gerarShow() {
+            const msg = document.getElementById('user-msg').value || "Feliz 2026!";
+            const photoInput = document.getElementById('user-photo');
+
+            if (photoInput.files && photoInput.files[0]) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    bgImg.src = e.target.result;
+                    bgImg.onload = () => { hasBg = true; iniciarShow(msg); };
+                };
+                reader.readAsDataURL(photoInput.files[0]);
+            } else {
+                iniciarShow(msg);
+            }
+        }
+
+        function iniciarShow(texto) {
+            document.getElementById('setup').style.display = 'none';
+            document.getElementById('display-container').style.display = 'block';
+
+            const effect = document.getElementById('firework-type').value;
+            const selectedFont = document.getElementById('font-style').value;
+
+            let options = {
+                opacity: 0.5, acceleration: 1.02, friction: 0.97, gravity: 1.5,
+                particles: 40, explosion: 5, intensity: 25,
+                sound: { enabled: true, files: ['https://fireworks.js.org/sounds/explosion0.mp3'], volume: { min: 2, max: 4 } }
+            };
+
+            if(effect === 'gold') options.particles = 60;
+            if(effect === 'light') { options.intensity = 10; options.particles = 20; }
+
+            fw = new Fireworks.default(canvas, options);
+            fw.start();
+
+            function render() {
+                // Desenhar Fundo Preto Limpo
+                ctx.fillStyle = "#000";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // 1. Foto Centralizada (85% da tela)
+                if (hasBg) {
+                    const margin = 0.85; 
+                    const scale = Math.min((canvas.width * margin) / bgImg.width, (canvas.height * margin) / bgImg.height);
+                    const w = bgImg.width * scale;
+                    const h = bgImg.height * scale;
+                    const x = (canvas.width - w) / 2;
+                    const y = (canvas.height - h) / 2;
+
+                    ctx.save();
+                    ctx.shadowBlur = 30;
+                    ctx.shadowColor = "black";
+                    ctx.drawImage(bgImg, x, y, w, h);
+                    ctx.restore();
+                }
+
+                // 2. Texto com Ajuste Automático de Tamanho
+                ctx.save();
+                ctx.fillStyle = "#ffcc00";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = "black";
+
+                // Lógica de Redução de Fonte: Começa em 60px e diminui se for muito largo
+                let fontSize = 60;
+                ctx.font = `bold ${fontSize}px ${selectedFont}`;
+                const maxWidth = canvas.width * 0.8; // O texto não pode ocupar mais de 80% da largura
+
+                while (ctx.measureText(texto).width > maxWidth && fontSize > 15) {
+                    fontSize -= 2;
+                    ctx.font = `bold ${fontSize}px ${selectedFont}`;
+                }
+
+                ctx.fillText(texto, canvas.width / 2, canvas.height / 2);
+                ctx.restore();
+
+                requestAnimationFrame(render);
+            }
+            render();
+        }
+
+        async function iniciarGravacao() {
+            const status = document.getElementById('status-msg');
+            status.style.display = 'block';
+            
+            const stream = canvas.captureStream(25); 
+            const recorder = new MediaRecorder(stream, { 
+                mimeType: 'video/webm;codecs=vp8',
+                videoBitsPerSecond: 3000000 
+            });
+            
+            const chunks = [];
+            recorder.ondataavailable = e => chunks.push(e.data);
+            recorder.onstop = () => {
+                const blob = new Blob(chunks, { type: 'video/webm' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'ano_novo_personalizado.webm';
+                a.click();
+                status.style.display = 'none';
+            };
+
+            recorder.start();
+            setTimeout(() => recorder.stop(), 7000); 
+        }
+    </script>
+</body>
+</html>
